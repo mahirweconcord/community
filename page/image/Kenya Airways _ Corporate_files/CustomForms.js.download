@@ -1,0 +1,177 @@
+﻿(function ($) {
+    // extend the EpiForm JavaScript API in ViewMode
+
+    const originalGetCustomElementValue = epi.EPiServer.Forms.Extension.getCustomElementValue;
+    const originalBindCustomElementValue = epi.EPiServer.Forms.Extension.bindCustomElementValue;
+
+        confirmEmailValidate = function (fieldName, fieldValue, validatorMetaData) {
+            if (typeof fieldValue === 'object' && fieldValue.isValid == false) {
+                return {
+                    isValid: false,
+                    message: validatorMetaData.model.message
+                };
+            }
+
+            // if value is empty, then let the required validator take the decision
+            if (fieldValue == "") {
+                return {
+                    isValid: true
+                };
+            }
+
+            var values = fieldValue.split('|');
+            if (values == undefined || values == null || values.length != 2) {
+                return {
+                    isValid: false,
+                    message: "Please enter both the email and confirm email address"
+                };
+            }
+
+            var emailValue = values[0],
+                confirmEmailValue = values[1];
+
+            if (emailValue != confirmEmailValue) {
+                return {
+                    isValid: false,
+                    message: "Please make sure that both the email and confirm email are the same"
+                };
+            }
+
+            return {
+                isValid: true
+            };
+        },
+
+        airportAutocompleteValidate = function (fieldName, fieldValue, validatorMetaData) {
+            if (typeof fieldValue === 'object' && fieldValue.isValid == false) {
+                return {
+                    isValid: false,
+                    message: validatorMetaData.model.message
+                };
+            }
+
+            // if value is empty, then let the required validator take the decision
+            if (fieldValue == "") {
+                return {
+                    isValid: true
+                };
+            }
+
+            var values = fieldValue.split('|');
+            if (values == undefined || values == null || values.length != 2) {
+                return {
+                    isValid: false,
+                    message: "Please select both the Origin and Destination"
+                };
+            }
+
+            var originValue = values[0],
+                destinationValue = values[1];
+
+            if (originValue == destinationValue) {
+                return {
+                    isValid: false,
+                    message: "Please make sure that the Origin is not the same as the Destination"
+                };
+            }
+
+            return {
+                isValid: true
+            };
+        };
+
+    $.extend(true, epi.EPiServer.Forms, {
+
+        Extension: {
+            // OVERRIDE, process to get value from datetime picker element
+            getCustomElementValue: function ($element) {
+
+                if ($element.hasClass("FormAutocompleteSelectionElement")) {
+                    var value = $element.attr("autocomplete-selection-selected-value");
+
+                    if (value != undefined && value != "") {
+                        return $element.attr("autocomplete-selection-selected-value");
+                    }
+
+                    return "";
+                }
+
+                if ($element.hasClass("FormConfirmEmailElement")) {
+                    var emailInput = $('.FormConfirmEmail__Input', $element).first().val(),
+                        confirmEmailInput = $('.FormConfirmEmailConfirmation__Input', $element).first().val();
+
+                    if (emailInput == undefined || emailInput == "" || confirmEmailInput == undefined || confirmEmailInput == "") {
+                        return "";
+                    }
+
+                    return emailInput + '|' + confirmEmailInput;
+                }
+
+                if ($element.hasClass("FormAirportAutocompleteElement")) {
+                    console.log("airport begin custom value");
+                    var origin = $element.attr('airport-autocomplete-origin-selected-value'),
+                        destination = $element.attr('airport-autocomplete-destination-selected-value');
+
+                    if (origin == undefined || origin == "" || destination == undefined || destination == "") {
+                        return "";
+                    }
+
+                    return origin + '|' + destination;
+                }
+
+                // if current element is not our job, let others process
+                return originalGetCustomElementValue.apply(this, [$element]);
+            },
+
+            bindCustomElementValue: function ($element, val) {
+                if ($element.hasClass('FormConfirmEmailElement')) {
+                    // skip binding value for ConfirmEmailElement when it has invalid value
+                    if (typeof val != "string" || val == undefined || val == null || val == "") {
+                        return;
+    }
+
+                    var values = val.split('|');
+                    if (values == null || values == undefined || values.length != 2) {
+                        return;
+                    }
+
+                    var $emailInput = $element.find(".FormConfirmEmail__Input"),
+                        $confirmEmailInput = $element.find(".FormConfirmEmailConfirmation__Input");
+                    $emailInput.val(values[0]);
+                    $confirmEmailInput.val(values[1]);
+                    return;
+                }
+
+                if ($element.hasClass('FormAirportAutocompleteElement')) {
+                    // skip binding value for AirportAutocompleteElement when it has invalid value
+                    if (typeof val != "string" || val == undefined || val == null || val == "") {
+                        return;
+                    }
+
+                    var values = val.split('|');
+                    if (values == null || values == undefined || values.length != 2) {
+                        return;
+                    }
+
+                    var $emailInput = $element.find(".FormConfirmEmail__Input"),
+                        $confirmEmailInput = $element.find(".FormConfirmEmailConfirmation__Input");
+                    $emailInput.val(values[0]);
+                    $confirmEmailInput.val(values[1]);
+
+                    $element.attr('airport-autocomplete-origin-selected-value', values[0]);
+                    $element.attr('airport-autocomplete-destination-selected-value', values[1]);
+                    return;
+                }
+
+                // if current element is not our job, let others process
+                return originalBindCustomElementValue.apply(this, [$element, val]);
+            }
+        },
+
+
+        Validators: {
+            "KenyaAirways.Web.UI.Website.Infrastructure.Forms.Validators.ConfirmEmailValidator": confirmEmailValidate,
+            "KenyaAirways.Web.UI.Website.Infrastructure.Forms.Validators.AirportAutocompleteValidator": airportAutocompleteValidate
+        }
+    });
+})($$epiforms || $);
